@@ -1,0 +1,12 @@
+.cvGame {
+	flex-grow: 99;
+	width: 100%;
+	border: 1px solid white;
+	border-radius: 5px;
+	
+	touch-action: none;
+}
+
+body {
+
+}
