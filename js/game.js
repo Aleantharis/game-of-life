@@ -136,3 +136,60 @@ export class Board {
         return this.#score;
     }
 }
+
+export class Player {
+    id;
+    color;
+    spawn;
+    score;
+    population;
+
+    constructor(id, color, spawn) {
+        this.id = id;
+        this.color = color;
+        this.spawn = spawn;
+        this.score = 0;
+        this.population = 0;
+    }
+}
+
+export class LifeGame {
+    #board;
+    #players;
+    #deathScore = 100;
+    #tickScore = 1;
+    #scoreHandler;
+    #boardHandler;
+
+    constructor(width, height, players, scoreHandler, boardHandler) {
+        this.#board = new Board(width,height);
+        this.#players = players;
+        this.#scoreHandler = scoreHandler;
+        this.#boardHandler = boardHandler;
+    }
+
+    tick() {
+        this.#board = Board.advance(this.#board);
+        // Invoke boardHandler to update board in UI
+        this.#boardHandler(this.#board, this.#players);
+
+        var pop = this.#board.population();
+        this.#players.forEach((a, idx, arr) => {
+            if(a.population > 0) {
+                var p = pop[a.id];
+                if(p !== undefined) {
+                    if(p === 0) {
+                        this.#players.filter(e => e.id !== idx && e.population > 0).forEach((el, i, arr) => {el.score += this.#deathScore;});
+                    }
+                    else {
+                        a.population = p;
+                        a.score += this.#tickScore;
+                    }
+                }
+            }
+        });
+
+        // Invoke score handler (to update score in GUI)
+        this.#scoreHandler(this.#players);
+    }
+}
