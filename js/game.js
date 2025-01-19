@@ -154,18 +154,44 @@ export class Player {
 }
 
 export class LifeGame {
+    // Game Vars
     #board;
     #players;
-    #deathScore = 100;
-    #tickScore = 1;
+
+    // Deadlock check
+    #staleRounds = 0;
+    #deadPop;
+
+    // Cfg Values
+    static deathScore = 100;
+    static tickScore = 1;
+
+    // Event Handlers
     #scoreHandler;
     #boardHandler;
+    #gameEndHandler;
 
-    constructor(width, height, players, scoreHandler, boardHandler) {
+    constructor(width, height, players, scoreHandler, boardHandler, gameEndHandler) {
         this.#board = new Board(width,height);
         this.#players = players;
         this.#scoreHandler = scoreHandler;
         this.#boardHandler = boardHandler;
+        this.#gameEndHandler = gameEndHandler;
+
+        // Initial Spawns
+        this.#players.forEach((a, idx, arr) => {
+            this.spawnPlayer(a);
+        })
+    }
+
+    spawnPlayer(player) {
+        // TODO: Spawn Legality check
+        player.spawn.forEach((a, idx, arr) => {
+            var xy = a.split(",");
+            this.#board.setSquare(xy[0], xy[1], player.id);
+        });
+
+        player.population = this.#board.population()[player.id];
     }
 
     tick() {
@@ -174,22 +200,59 @@ export class LifeGame {
         this.#boardHandler(this.#board, this.#players);
 
         var pop = this.#board.population();
+        var stalePop = 0;
+        this.#deadPop = 0;
         this.#players.forEach((a, idx, arr) => {
             if(a.population > 0) {
                 var p = pop[a.id];
-                if(p !== undefined) {
-                    if(p === 0) {
-                        this.#players.filter(e => e.id !== idx && e.population > 0).forEach((el, i, arr) => {el.score += this.#deathScore;});
-                    }
-                    else {
-                        a.population = p;
-                        a.score += this.#tickScore;
-                    }
+                if(p === undefined || p === 0) {
+                    a.population = 0;
+                    this.#deadPop++;
+                    this.#players.filter(e => e.id !== idx && e.population > 0).forEach((el, i, arr) => {el.score += LifeGame.deathScore;});
                 }
+                else {
+                    if(a.population === p) {
+                        stalePop++
+                    }
+                    a.population = p;
+                    a.score += LifeGame.tickScore;
+                }
+            }
+            else {
+                this.#deadPop++;
             }
         });
 
         // Invoke score handler (to update score in GUI)
         this.#scoreHandler(this.#players);
+
+        // Check dead game 
+        //  - Pops didn't change for [5] rounds -> StaleMate
+        //  - Population for [Max-1] equals 0   -> Winner
+        if(this.#deadPop === (this.#players.length - 1)) {
+            this.#gameEndHandler("GameOver");
+        }
+        if((stalePop + this.#deadPop) === this.#players.length) {
+            this.#staleRounds++;
+            if(this.#staleRounds > 4) {
+                this.#gameEndHandler("StaleMate");
+            }
+        }
+        else {
+            this.#staleRounds = 0;
+        }
+    }
+
+    getPlayerAt(x, y) {
+        var p = this.#board.getSquare(x, y);
+        return this.#players.find(e => e.id === p);
+    }
+
+    getBoard() {
+        return this.#board;
+    }
+
+    getPlayers() {
+        return this.#players;
     }
 }
