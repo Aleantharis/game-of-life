@@ -18,7 +18,14 @@ var boardScaleY = 1;
 let canvas = document.getElementById("cvGame");
 var ctx = canvas.getContext("2d");
 let tileSize;
+// How much space is for drawing player scores
+let offsetScale = 0.9;
+let offsetX;
+let offsetY;
+// Direction of players core offset (l/d)
+let offsetDir;
 
+const emptyTileColor = "rgba(255,255,255,1)";
 const tileColor = [
     "rgba(255,255,255,1)",
     "rgba(255,0,0,1)",
@@ -43,7 +50,19 @@ function resizeCanvas() {
 	}
 
 	tileSize = Math.min(canvas.width / boardSizes[boardSizeIdx].X, Math.min(canvas.height, canvas.width * boardScaleY) / boardSizes[boardSizeIdx].Y) * BOARDSCALE;
-	ctx.translate((canvas.width - (tileSize * boardSizes[boardSizeIdx].X)) / 2, (canvas.height - (tileSize * boardSizes[boardSizeIdx].Y)) / 2);
+	
+	if((canvas.width - (tileSize * boardSizes[boardSizeIdx].X)) > (canvas.height - (tileSize * boardSizes[boardSizeIdx].Y))) {
+		offsetDir = "l";
+		offsetX = (canvas.width - (tileSize * boardSizes[boardSizeIdx].X)) * offsetScale;
+		offsetY = (canvas.height - (tileSize * boardSizes[boardSizeIdx].Y)) / 2;
+	}
+	else {
+		offsetDir = "d";
+		offsetX = (canvas.width - (tileSize * boardSizes[boardSizeIdx].X)) / 2;
+		offsetY = (canvas.height - (tileSize * boardSizes[boardSizeIdx].Y)) * offsetScale;
+	}
+
+	ctx.translate(offsetX, offsetY);
 
     if(game) {
         drawGame(game);
@@ -99,7 +118,7 @@ function drawBoard(board, pl) {
 	for (let i = 0; i < board.width; i++) {
 		for (let j = 0; j < board.height; j++) {
 			var p = game.getPlayerAt(i,j);
-			ctx.fillStyle = p !== undefined ? p.color : "rgba(255,255,255,1)";
+			ctx.fillStyle = p !== undefined ? p.color : emptyTileColor;
 			ctx.fillRect(i*tileSize,j*tileSize,tileSize,tileSize);
         }
     }
@@ -110,9 +129,43 @@ function drawBoard(board, pl) {
 
 function drawPlayers(pl) {
     // Clear players area, then print player scores
+
+	ctx.beginPath()
+	ctx.save();
+
+	ctx.resetTransform();
+	ctx.fillStyle = "rgba(0,0,0,0.8)"
+	let maxW = 0;
+	let maxH = 0;
+	if(offsetDir === "l") {
+		ctx.setTransform(1, 0, 0, 1, offsetX * offsetScale, 0);
+		ctx.rotate((90 * Math.PI) / 180);
+		ctx.fillRect(0, 0, canvas.height, offsetX * offsetScale);
+		maxW = canvas.height;
+		maxH = offsetX * offsetScale;
+	}
+	else if(offsetDir === "d"){
+		ctx.fillRect(0,0, canvas.width, offsetY * offsetScale);
+		maxW = canvas.width;
+		maxH = offsetY * offsetScale;
+	}
+
+	var txtWidth = (maxW / (pl.length + 1) );// * 0.8;
+	var txtWidthOffset = txtWidth / (pl.length +1);
+	ctx.font = (maxH * 0.8) + "px Sans-Serif";
+	ctx.textBaseline = "top";
 	pl.forEach((a, idx, arr) => {
+		ctx.fillStyle = a.color;
+		ctx.shadowColor = a.population > 0 ? "rgba(255,255,255,1)" : "rgba(0,0,0,1)";
+		ctx.shadowOffsetX = 2;
+		ctx.shadowOffsetY = 2;
+		ctx.fillText(a.score, ((txtWidth + txtWidthOffset) * idx) + txtWidthOffset, (maxH * 0.2), txtWidth);
+		// TODO: Draw "Player [id] ([Pop]): [Score]" --- dimm by 0.8 if player is ded
 		console.log(a.id + ": "+ a.population + ", " + a.score);
 	});
+
+	ctx.restore();
+	ctx.closePath();
 }
 
 
